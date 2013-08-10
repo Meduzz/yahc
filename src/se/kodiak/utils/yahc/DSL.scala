@@ -12,16 +12,32 @@ object DSL {
   case class Post(server:InetSocketAddress, path:String, headers:List[String] = List(), secure:Boolean, postData:String)
   case class Put(server:InetSocketAddress, path:String, headers:List[String] = List(), secure:Boolean, putData:String)
   case class Delete(server:InetSocketAddress, path:String, headers:List[String] = List(), secure:Boolean)
-  case class Headers(server:InetSocketAddress, path:String, headers:List[String] = List(), secure:Boolean)
+  case class Head(server:InetSocketAddress, path:String, headers:List[String] = List(), secure:Boolean)
 
-  def host(url:String):DSL = {
-    new DSL(url)
+  /**
+   * Start of with a host only.
+   * @param host the host.
+   * @return returns the DSL builder.
+   */
+  def host(host:String):DSL = {
+    new DSL(host)
   }
 
+  /**
+   * Start of with a host and a port.
+   * @param host the host.
+   * @param port the port.
+   * @return returns the DSL builder.
+   */
   def host(host:String, port:Int):DSL = {
     new DSL(host, port)
   }
 
+  /**
+   * Start of with a URI object.
+   * @param uri the URI object.
+   * @return returns the DSL builder.
+   */
   def host(uri:URI):DSL = {
     val host = uri.getHost
     val port = if (uri.getPort < 0) { 80 } else { uri.getPort }
@@ -67,6 +83,11 @@ object DSL {
   }
 }
 
+/**
+ * A DSL builder to generate HTTP requests.
+ * @param host the host of this request.
+ * @param port the port of this request, defaults to 80.
+ */
 class DSL(val host:String, val port:Int = 80) {
   private var queryParams = List[(String, String)]()
   private var postParams = List[(String, String)]()
@@ -74,36 +95,76 @@ class DSL(val host:String, val port:Int = 80) {
   private var paths = List[String]()
   private var https = false
 
+  /**
+   * Add a queryParam tuple.
+   * @param queryParam the tuple.
+   * @return returns this DSL instance.
+   */
   def ?(queryParam:(String, String)):DSL = {
     println("Q: "+queryParam._1 + "&" + queryParam._2) // TODO remove
     queryParams = queryParams :+ queryParam
     this
   }
 
+  /**
+   * Return the current list of query param tuples.
+   * @return the list of tuples.
+   */
   def getQueryParams:List[(String, String)] = queryParams
 
+  /**
+   * Add a post/put param tuple.
+   * @param postParam the tuple.
+   * @return returns this DSL instance.
+   */
   def +(postParam:(String, String)):DSL = {
     println("P: "+postParam._1 + "&" + postParam._2) // TODO remove
     postParams = postParams :+ postParam
     this
   }
 
+  /**
+   * Return a list of post/put param tuples.
+   * @return the list of tuples.
+   */
   def getPostParams:List[(String, String)] = postParams
 
+  /**
+   * Set secure (true=https, false=http) default value is false.
+   * @param secure go secure or not.
+   */
   def secure(secure:Boolean) = {
     https = secure
   }
 
+  /**
+   * Returns weather this request is set to secure or not.
+   * @return TorF
+   */
   def secure:Boolean = https
 
+  /**
+   * Add a header tuple.
+   * @param headerParam the tuple.
+   * @return returns this DSL instance.
+   */
   def &(headerParam:(String,String)):DSL = {
     println("H: "+headerParam._1 + "&" + headerParam._2) // TODO remove
     headerParams = headerParams :+ headerParam
     this
   }
 
+  /**
+   * Returns the current list of header tuples.
+   * @return the list of tuples.
+   */
   def getHeaderParams = headerParams
 
+  /**
+   * Append some bit of path to the total path.
+   * @param path the bit to append.
+   * @return returns this DSL instance.
+   */
   def /(path:String):DSL = {
     println("A: "+path) // TODO remove
     this.paths = this.paths :+ path
@@ -129,10 +190,18 @@ class DSL(val host:String, val port:Int = 80) {
     }
   }
 
+  /**
+   * Generate a GET request from this builder.
+   * @return a GET reuest.
+   */
   def get:Get = {
     new Get(new InetSocketAddress(host, port), buildPath, buildHeaders(null), secure)
   }
 
+  /**
+   * Returns a POST request, with form encoded data.
+   * @return the POST request.
+   */
   def post:Post = {
     val post = postParams.map { p =>
       p._1+"="+p._2
@@ -141,11 +210,20 @@ class DSL(val host:String, val port:Int = 80) {
     new Post(new InetSocketAddress(host, port), buildPath, buildHeaders(headers), secure, post.mkString("&"))
   }
 
+  /**
+   * Returns a POST request with post data set to postData. Dont forget to set the content-encoding header.
+   * @param postData the "raw" data to post.
+   * @return the POST request.
+   */
   def post(postData:String):Post = {
     val headers = headerParams :+ ("Content-Length", postData.length.toString)
     new Post(new InetSocketAddress(host, port), buildPath, buildHeaders(headers), secure, postData)
   }
 
+  /**
+   * Generate a PUT request from this builder with form encoded data.
+   * @return the PUT request
+   */
   def put:Put = {
     val put = postParams.map { p =>
       p._1+"="+p._2
@@ -154,16 +232,29 @@ class DSL(val host:String, val port:Int = 80) {
     new Put(new InetSocketAddress(host, port), buildPath, buildHeaders(headers), secure, put.mkString("&"))
   }
 
+  /**
+   * Generate a PUT request from the data from parameter putData. Dont forget to set the content-encoding header.
+   * @param putData the data to PUT.
+   * @return the PUT request.
+   */
   def put(putData:String):Put = {
     val headers = headerParams :+ ("Content-Length", putData.length.toString)
     new Put(new InetSocketAddress(host, port), buildPath, buildHeaders(headers), secure, putData)
   }
 
+  /**
+   * Generate a DELETE request from this builder.
+   * @return the DELETE request.
+   */
   def delete:Delete = {
     new Delete(new InetSocketAddress(host, port), buildPath, buildHeaders(null), secure)
   }
 
-  def headers:Headers = {
-    new Headers(new InetSocketAddress(host, port), buildPath, buildHeaders(null), secure)
+  /**
+   * Generate a HEAD request from this builder.
+   * @return the HEAD request.
+   */
+  def head:Head = {
+    new Head(new InetSocketAddress(host, port), buildPath, buildHeaders(null), secure)
   }
 }
