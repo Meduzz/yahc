@@ -8,11 +8,18 @@ import se.kodiak.utils.yahc.DSL.Post
 import se.kodiak.utils.yahc.DSL.Delete
 
 object DSL {
-  case class Get(server:InetSocketAddress, path:String, headers:List[String] = List(), secure:Boolean)
-  case class Post(server:InetSocketAddress, path:String, headers:List[String] = List(), secure:Boolean, postData:String)
-  case class Put(server:InetSocketAddress, path:String, headers:List[String] = List(), secure:Boolean, putData:String)
-  case class Delete(server:InetSocketAddress, path:String, headers:List[String] = List(), secure:Boolean)
-  case class Head(server:InetSocketAddress, path:String, headers:List[String] = List(), secure:Boolean)
+  case class Get(server:InetSocketAddress, path:String, headers:List[String] = List(), secure:Boolean) extends Request
+  case class Post(server:InetSocketAddress, path:String, headers:List[String] = List(), secure:Boolean, postData:String) extends Request
+  case class Put(server:InetSocketAddress, path:String, headers:List[String] = List(), secure:Boolean, putData:String) extends Request
+  case class Delete(server:InetSocketAddress, path:String, headers:List[String] = List(), secure:Boolean) extends Request
+  case class Head(server:InetSocketAddress, path:String, headers:List[String] = List(), secure:Boolean) extends Request
+
+  sealed trait Request {
+    def server:InetSocketAddress
+    def path:String
+    def headers:List[String]
+    def secure:Boolean
+  }
 
   /**
    * Start of with a host only.
@@ -101,7 +108,6 @@ class DSL(val host:String, val port:Int = 80) {
    * @return returns this DSL instance.
    */
   def ?(queryParam:(String, String)):DSL = {
-    println("Q: "+queryParam._1 + "&" + queryParam._2) // TODO remove
     queryParams = queryParams :+ queryParam
     this
   }
@@ -118,7 +124,6 @@ class DSL(val host:String, val port:Int = 80) {
    * @return returns this DSL instance.
    */
   def +(postParam:(String, String)):DSL = {
-    println("P: "+postParam._1 + "&" + postParam._2) // TODO remove
     postParams = postParams :+ postParam
     this
   }
@@ -149,7 +154,6 @@ class DSL(val host:String, val port:Int = 80) {
    * @return returns this DSL instance.
    */
   def &(headerParam:(String,String)):DSL = {
-    println("H: "+headerParam._1 + "&" + headerParam._2) // TODO remove
     headerParams = headerParams :+ headerParam
     this
   }
@@ -166,7 +170,6 @@ class DSL(val host:String, val port:Int = 80) {
    * @return returns this DSL instance.
    */
   def /(path:String):DSL = {
-    println("A: "+path) // TODO remove
     this.paths = this.paths :+ path
     this
   }

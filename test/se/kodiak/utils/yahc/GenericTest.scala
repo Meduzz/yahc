@@ -1,6 +1,7 @@
 package se.kodiak.utils.yahc
 
 import org.scalatest.FunSuite
+import akka.util.ByteString
 
 class GenericTest extends FunSuite {
 
@@ -63,5 +64,64 @@ class GenericTest extends FunSuite {
     targets.filter { t =>
       t.contains(subject)
     }.length > 0
+  }
+
+  val get = "GET /path?query=test HTTP/1.1\r\nHost:www.test.com\r\nheader:test\r\n\r\n"
+  val post = "POST /path?query=test HTTP/1.1\r\nHost:www.test.com\r\nheader:test\r\nContent-Length:9\r\nContent-Encoding:application/x-www-form-urlencoded\r\n\r\nbody=test"
+  val post2 = "POST /path?query=test HTTP/1.1\r\nHost:www.test.com\r\nheader:test\r\nContent-Length:10\r\n\r\nDin mamma!"
+  val put = "PUT /path?query=test HTTP/1.1\r\nHost:www.test.com\r\nheader:test\r\nContent-Length:9\r\nContent-Encoding:application/x-www-form-urlencoded\r\n\r\nbody=test"
+  val put2 = "PUT /path?query=test HTTP/1.1\r\nHost:www.test.com\r\nheader:test\r\nContent-Length:10\r\n\r\nDin mamma!"
+  val delete = "DELETE /path?query=test HTTP/1.1\r\nHost:www.test.com\r\nheader:test\r\n\r\n"
+  val head = "HEAD /path?query=test HTTP/1.1\r\nHost:www.test.com\r\nheader:test\r\n\r\n"
+
+  test("HttpUtil builds correct request") {
+    import DSL._
+    val dsl:DSL = "http://www.test.com/path?query=test"
+    dsl & ("header", "test")
+    dsl + ("body", "test")
+
+    val utilGet = HttpUtil(dsl.get)
+    assert(utilGet.equals(ByteString.fromString(get, "UTF-8")))
+
+    val utilPost = HttpUtil(dsl.post)
+    assert(utilPost.equals(ByteString.fromString(post, "UTF-8")))
+
+    val utilPost2 = HttpUtil(dsl.post("Din mamma!"))
+    assert(utilPost2.equals(ByteString.fromString(post2, "UTF-8")))
+
+    val utilPut = HttpUtil(dsl.put)
+    assert(utilPut.equals(ByteString.fromString(put, "UTF-8")))
+
+    val utilPut2 = HttpUtil(dsl.put("Din mamma!"))
+    assert(utilPut2.equals(ByteString.fromString(put2, "UTF-8")))
+
+    val utilDelete = HttpUtil(dsl.delete)
+    assert(utilDelete.equals(ByteString.fromString(delete, "UTF-8")))
+
+    val utilHead = HttpUtil(dsl.head)
+    assert(utilHead.equals(ByteString.fromString(head, "UTF-8")))
+  }
+
+  test("HttpUtil builds correct responses") {
+    val bodylessResponse = "HTTP/1.1 200 OK\r\nheader:test\r\nmessage:i fell for it\r\n\r\n"
+    val bodyfulResponse = "HTTP/1.1 200 OK\r\nheader:test\r\nContent-Encoding:UTF-8\r\nContent-Length:23\r\n\r\nDetta kunde varit HTML!"
+    val longbodyResponse = "HTTP/1.1 200 OK\r\nheader:test\r\nContent-Encoding:UTF-8\r\nContent-Length:164\r\n\r\nI need to break the 128 bit \"read\" limit, so I'll just go on here for a while, and see if this crashes or not! Ok, apparently I have to go one for a while longer ;)"
+
+    val headUtil = HttpUtil(ByteString.fromString(bodylessResponse, "UTF-8"))
+    assert(headUtil.status == 200)
+    assert(headUtil.body.length == 0)
+    assert(headUtil.headers("header").equals("test"))
+
+    val shortBodyUtil = HttpUtil(ByteString.fromString(bodyfulResponse, "UTF-8"))
+    assert(shortBodyUtil.status == 200)
+    assert(shortBodyUtil.body.length == 23)
+    assert(shortBodyUtil.headers.size == 3)
+    assert(shortBodyUtil.headers("Content-Length").equals("23"))
+
+    val longBodyUtil = HttpUtil(ByteString.fromString(longbodyResponse, "UTF-8"))
+    assert(longBodyUtil.status == 200)
+    assert(longBodyUtil.body.length == 164)
+    assert(longBodyUtil.headers.size == 3)
+    assert(longBodyUtil.headers("Content-Length").equals("164"))
   }
 }
