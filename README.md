@@ -1,13 +1,13 @@
 # The "YAHC" project
 
-Yet another HTTP client
+Yet another HTTP client.
 
 ## Requirements
 * Scala (ofc)
 * Scalatest (for tests)
-* Akka.IO (soon)
+* Akka.IO
 
 ## TODO
-* Wire in Akka.
+* Take care of TODOs
 * Add SBT
 * Enjoy the coffee

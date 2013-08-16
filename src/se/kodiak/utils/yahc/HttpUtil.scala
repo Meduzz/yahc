@@ -4,11 +4,18 @@ import akka.util.{ByteIterator, ByteString}
 import se.kodiak.utils.yahc.DSL._
 import scala.annotation.tailrec
 
-// TODO test!
-
+/**
+ * Converts requests to ByteStrings to be written
+ * and ByteStrings to Responses to be sent back.
+ */
 object HttpUtil {
   val LF = "\r\n"
 
+  /**
+   * Handles all supported requests (DSL._ verbs)
+   * @param req the request.
+   * @return returns a bytestring of the request.
+   */
   def apply(req:Request):ByteString = {
     val builder = ByteString.newBuilder
 
@@ -24,6 +31,11 @@ object HttpUtil {
     builder.result()
   }
 
+  /**
+   * Takes the raw response from the server and coverts it to a Response.
+   * @param res a bytestring, ie the bytes sent by the server.
+   * @return returns a Request.
+   */
   def apply(res:ByteString):Response = {
     // TODO prolly does not allow for pipelining.
     val it = res.iterator

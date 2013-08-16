@@ -219,6 +219,7 @@ class DSL(val host:String, val port:Int = 80) {
    * @return the POST request.
    */
   def post(postData:String):Post = {
+    // TODO funny how it reads string and returns array[byte]..
     val headers = headerParams :+ ("Content-Length", postData.length.toString)
     new Post(new InetSocketAddress(host, port), buildPath, buildHeaders(headers), secure, postData)
   }
@@ -241,6 +242,7 @@ class DSL(val host:String, val port:Int = 80) {
    * @return the PUT request.
    */
   def put(putData:String):Put = {
+    // TODO funny how it reads string and returns array[byte]..
     val headers = headerParams :+ ("Content-Length", putData.length.toString)
     new Put(new InetSocketAddress(host, port), buildPath, buildHeaders(headers), secure, putData)
   }
