@@ -1,48 +1,42 @@
 package se.kodiak.utils.yahc
 
-import se.kodiak.utils.yahc.DSL.{Get, Post, Put, Delete, Head, Request}
+import se.kodiak.utils.yahc.DSL.Request
 import scala.concurrent.{Promise, Future}
 import akka.actor._
 import akka.io.{IO, Tcp}
 import akka.io.Tcp._
-import akka.io.Tcp.Connected
-import akka.io.Tcp.Register
-import akka.io.Tcp.Connect
-import scala.util.{Try, Success, Failure}
-import akka.io.Tcp.CommandFailed
+import scala.util.Success
 import java.net.InetSocketAddress
 import akka.pattern.ask
 import akka.io.Tcp.Connected
-import se.kodiak.utils.yahc.Response
 import akka.io.Tcp.Register
 import akka.io.Tcp.Connect
 import akka.io.Tcp.CommandFailed
 import scala.collection.mutable
-
-/*
- In the best of worlds you'd like to have an actor as a connection and send it Get/Post/Puts etc, and then
- reuse that "connection" with different builder.
- That means, either split host+port from request or redo the DSL.
- */
+import akka.util.Timeout
 
 object HttpClient {
 
-  def apply(host:InetSocketAddress):HttpClient = {
+  def apply(host:InetSocketAddress):HttpClient = { // TODO change this to take a config
     new HttpClient(host)
   }
 
 }
 
 // TODO add reconnect method.
+// TODO add support for many connections / client.
 class HttpClient(val host:InetSocketAddress) {
   val system = ActorSystem("yahc-actor-system")
-  val connector = system.actorOf(Props(classOf[HttpClientActor], host), "HttpClientActorProps")
+  val connector = system.actorOf(Props(classOf[HttpClientActor], host), "HttpClientActor")
 
-  def send(req:Request):Future[Response] = {
+  def send(req:Request):Future[Response] = { // TODO look up connections on host:ip and send request.
+    import system.dispatcher
+    import java.util.concurrent.TimeUnit
     val promise = Promise[Response]()
 
-    import system.dispatcher
-    val response = connector ? req
+    implicit val timeout = Timeout(15, TimeUnit.SECONDS) // TODO extract to property
+    val response = connector ? new Operation(req, promise)
+
     promise.completeWith(response.mapTo[Response])
 
     promise.future
@@ -53,60 +47,52 @@ class HttpClient(val host:InetSocketAddress) {
   }
 }
 
+case class Operation(req:Request, promise:Promise[Response])
 case class Response(status:Int, message:String, headers:Map[String, String], body:Array[Byte])
 
 private class HttpClientActor(val host:InetSocketAddress) extends Actor {
   implicit val system = context.system
   IO(Tcp) ! Connect(host)
 
+  val responseQue = mutable.Queue[Promise[Response]]()
+  val requestQue = mutable.MutableList[Request]()
+
   def receive = {
     case CommandFailed(cmd:Connect) => {
-      // TODO what to do?
+      // TODO what to do? Fail all promises and suicide?
+      println("Connect failed.")
     }
-    // TODO more to come Commandfailed(which_command)
     case con:Connected => {
-      val handler = system.actorOf(Props(classOf[HttpHandler], sender, self))
-      sender ! Register(handler)
+      val connection = sender
+      sender ! Register(self)
+
+      requestQue.foreach { r =>
+        connection ! Write(HttpUtil(r), Ack)
+      }
+      requestQue.clear()
 
       context become {
+        case Received(data) => {
+          val promise = responseQue.dequeue()
+          promise.complete(Success(HttpUtil(data))) // TODO this potentially assumes each frame are a full response...
+          // Solve by returning Option[Response] in HttpUtil and add a buffer here and try the whole buffer until it works?
+        }
         case req:Request => {
           val parent = sender
           val promise = Promise[Response]()
-
-          import context.dispatcher
-          val response = handler ? req
-          promise.completeWith(response.mapTo[Response])
-
+          responseQue.enqueue(promise) // TODO this can grow out of control, add limit controlled from config
+          connection ! Write(HttpUtil(req), Ack)
           parent ! promise.future
         }
-        case Close => handler ! Close // TODO is this enough, or do we need a poisonpill as well?
       }
     }
-  }
-}
-
-private class HttpHandler(val connection:ActorRef, val parent:ActorRef) extends Actor {
-  import Tcp._
-
-  context watch connection
-  val que = mutable.Queue[Promise[Response]]()
-
-
-  def receive = {
-    // TODO add a couple of CommandFailed versions.
-    case req:Request => {
-      val promise = Promise[Response]()
-      que.enqueue(promise) // TODO this can grow out of control
-      sender ! promise.future
-      connection ! Write(HttpUtil(req), Ack)
+    case op:Operation => {
+      val parent = sender
+      responseQue.enqueue(op.promise) // TODO this can grow out of control, add limit controlled from config
+      requestQue += op.req
     }
-    case Received(data) => {
-      val promise = que.dequeue()
-      promise.complete(Success(HttpUtil(data))) // TODO this assumes each frame are a full response...
-      // Solve by returning Option[Response] in HttpUtil and add a buffer here and try the whole buffer until it works?
-    }
-    case PeerClosed => context stop self
   }
+  // TODO add more to come Commandfailed(which_command)
 }
 
 private object Ack extends Event

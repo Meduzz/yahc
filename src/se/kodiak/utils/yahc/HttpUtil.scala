@@ -37,7 +37,6 @@ object HttpUtil {
    * @return returns a Request.
    */
   def apply(res:ByteString):Response = {
-    // TODO prolly does not allow for pipelining.
     val it = res.iterator
     val headerBody = StringBuilder.newBuilder
     val bodyPos = findBody(it, headerBody, 1)
@@ -49,7 +48,7 @@ object HttpUtil {
       startAndHeaders = headerBody.result()
     } else {
       startAndHeaders = headerBody.result().substring(0, bodyPos)
-      body = new Array[Byte](res.size-bodyPos-4)
+      body = new Array[Byte](res.size-bodyPos-8)
       val newIt = res.iterator
       newIt.drop(bodyPos+4)
       newIt.getBytes(body)

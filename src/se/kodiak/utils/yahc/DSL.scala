@@ -179,7 +179,12 @@ class DSL(val host:String, val port:Int = 80) {
     val query = getQueryParams.map { f =>
       f._1+"="+f._2
     }
-    path + "?"+query.mkString("&")
+
+    if (query.size > 0) {
+      path + "?" + query.mkString("&")
+    } else {
+      path
+    }
   }
 
   private def buildHeaders(headers:List[(String, String)]):List[String] = {
