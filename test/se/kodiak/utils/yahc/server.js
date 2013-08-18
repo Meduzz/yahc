@@ -13,6 +13,14 @@ server.on('request', function(req, res){
   } else if (req.url == '/post' && req.method == 'POST') {
     console.log("200");
     res.write("This was a post request.", "utf8");
+  } else if (req.url == '/put' && req.method == 'PUT') {
+    console.log("200");
+    res.write("This was a put request.", "utf8");
+  } else if (req.url == '/delete' && req.method == 'DELETE') {
+    console.log("200");
+    res.write("This was a delete request.", "utf8");
+  } else if (req.url == '/head' && req.method == 'HEAD') {
+    console.log("200");
   } else {
     console.log("404")
     res.statusCode = 404;
