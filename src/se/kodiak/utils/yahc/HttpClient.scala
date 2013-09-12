@@ -16,20 +16,20 @@ import scala.collection.mutable
 import akka.util.Timeout
 
 object HttpClient {
-
-  def apply(host:InetSocketAddress):HttpClient = { // TODO change this to take a config
-    new HttpClient(host)
+  def apply():HttpClient = {
+    new HttpClient
   }
-
 }
 
 // TODO add reconnect method.
 // TODO add support for many connections / client.
-class HttpClient(val host:InetSocketAddress) {
+class HttpClient {
+  val connections = mutable.Map[String, ActorRef]()
   val system = ActorSystem("yahc-actor-system")
-  val connector = system.actorOf(Props(classOf[HttpClientActor], host), "HttpClientActor")
 
-  def send(req:Request):Future[Response] = { // TODO look up connections on host:ip and send request.
+  def send(req:Request):Future[Response] = {
+    val connector = lookupAddress(req.server)
+
     import system.dispatcher
     import java.util.concurrent.TimeUnit
     val promise = Promise[Response]()
@@ -42,8 +42,15 @@ class HttpClient(val host:InetSocketAddress) {
     promise.future
   }
 
-  def disconnect = {
-    connector ! Close
+  def disconnect(host:InetSocketAddress) = {
+    lookupAddress(host) ! Close // TODO will try to create a socket to close if it have too...
+  }
+
+  private def lookupAddress(host:InetSocketAddress):ActorRef = {
+    if (!connections.contains(host.getHostName+":"+host.getPort)) {
+      connections += (host.getHostName+":"+host.getPort -> system.actorOf(Props(classOf[HttpClientActor], host), host.getHostName+":"+host.getPort))
+    }
+    connections(host.getHostName+":"+host.getPort)
   }
 }
 
@@ -58,6 +65,7 @@ private class HttpClientActor(val host:InetSocketAddress) extends Actor {
   val requestQue = mutable.MutableList[Request]()
 
   def receive = {
+    // TODO react to connection closed, and reconnect.
     case CommandFailed(cmd:Connect) => {
       // TODO what to do? Fail all promises and suicide?
       println("Connect failed.")

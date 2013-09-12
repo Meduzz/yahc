@@ -24,7 +24,7 @@ class FlowTest extends FunSuite with BeforeAndAfter {
     builder / "get"
 
     val request = builder.get
-    val client = HttpClient(request.server)
+    val client = HttpClient()
     val future = client.send(request)
 
     val response = Await.result(future, 10 seconds)
@@ -42,7 +42,7 @@ class FlowTest extends FunSuite with BeforeAndAfter {
     builder / "post"
     builder + ("key", "val")
     val request = builder.post
-    val client = HttpClient(request.server)
+    val client = HttpClient()
     val future = client.send(request)
 
     val res = Await.result(future, 10 seconds)
@@ -59,7 +59,7 @@ class FlowTest extends FunSuite with BeforeAndAfter {
     val builder:DSL = "http://localhost:3000"
     builder / "post"
     val request = builder.post("test data")
-    val client = HttpClient(request.server)
+    val client = HttpClient()
     val future = client.send(request)
 
     val res = Await.result(future, 10 seconds)
@@ -77,7 +77,7 @@ class FlowTest extends FunSuite with BeforeAndAfter {
     builder / "put"
     builder + ("key", "val")
     val request = builder.put
-    val client = HttpClient(request.server)
+    val client = HttpClient()
     val future = client.send(request)
 
     val res = Await.result(future, 10 seconds)
@@ -94,7 +94,7 @@ class FlowTest extends FunSuite with BeforeAndAfter {
     val builder:DSL = "http://localhost:3000"
     builder / "put"
     val request = builder.put("test data")
-    val client = HttpClient(request.server)
+    val client = HttpClient()
     val future = client.send(request)
 
     val res = Await.result(future, 10 seconds)
@@ -111,7 +111,7 @@ class FlowTest extends FunSuite with BeforeAndAfter {
     val builder:DSL = "http://localhost:3000"
     builder / "delete"
     val request = builder.delete
-    val client = HttpClient(request.server)
+    val client = HttpClient()
     val future = client.send(request)
 
     val res = Await.result(future, 10 seconds)
@@ -128,7 +128,7 @@ class FlowTest extends FunSuite with BeforeAndAfter {
     val builder:DSL = "http://localhost:3000"
     builder / "head"
     val request = builder.head
-    val client = HttpClient(request.server)
+    val client = HttpClient()
     val future = client.send(request)
 
     val res = Await.result(future, 10 seconds)
@@ -141,6 +141,23 @@ class FlowTest extends FunSuite with BeforeAndAfter {
   // TODO add a test with huge body
   // TODO add a test with loads of request to a server
   // TODO replace node.js with a more native "mock"
+
+  test("multiple connections") {
+    import DSL._
+
+    val localhost:DSL = "http://localhost:3000"
+    val localhostQuery = localhost / "get" get
+
+    val duckduck:DSL = "http://www.duckduckgo.com"
+    val duckduckQuery = duckduck ? ("q", "yahc") get
+
+    val client = HttpClient()
+
+    client send localhostQuery
+    client send duckduckQuery
+    client send localhostQuery
+    client send duckduckQuery
+  }
 
   test("shutdown node") {
     process.destroy()
