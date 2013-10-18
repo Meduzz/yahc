@@ -13,7 +13,7 @@ import akka.io.Tcp.Register
 import akka.io.Tcp.Connect
 import akka.io.Tcp.CommandFailed
 import scala.collection.mutable
-import akka.util.Timeout
+import akka.util.{ByteString, Timeout}
 
 object HttpClient {
   def apply():HttpClient = {
@@ -35,9 +35,7 @@ class HttpClient {
     val promise = Promise[Response]()
 
     implicit val timeout = Timeout(15, TimeUnit.SECONDS) // TODO extract to property
-    val response = connector ? new Operation(req, promise)
-
-    promise.completeWith(response.mapTo[Response])
+    connector ! new Operation(req, promise)
 
     promise.future
   }
@@ -63,6 +61,7 @@ private class HttpClientActor(val host:InetSocketAddress) extends Actor {
 
   val responseQue = mutable.Queue[Promise[Response]]()
   val requestQue = mutable.Queue[Request]()
+  val buffer = ByteString.newBuilder
 
   def receive = {
     // TODO react to connection closed, and reconnect.
@@ -80,20 +79,23 @@ private class HttpClientActor(val host:InetSocketAddress) extends Actor {
 
       context become {
         case Received(data) => {
-          val promise = responseQue.dequeue()
-          promise.complete(Success(HttpUtil(data))) // TODO this potentially assumes each frame are a full response...
-          // Solve by returning Option[Response] in HttpUtil and add a buffer here and try the whole buffer until it works?
+          HttpUtil(buffer.append(data).result()) match {
+            case None => buffer.append(data)
+            case Some(r:Response) => {
+              val promise = responseQue.dequeue()
+              promise.complete(Success(r))
+              buffer.clear()
+            }
+          }
 
           if (!requestQue.isEmpty) {
             connection ! Write(HttpUtil(requestQue.dequeue()))
           }
         }
         case op:Operation => {
-          val parent = sender
           val promise = op.promise
           responseQue.enqueue(promise) // TODO this can grow out of control, add limit controlled from config
           connection ! Write(HttpUtil(op.req), Ack)
-          parent ! promise.future
         }
       }
     }

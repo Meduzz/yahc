@@ -36,7 +36,7 @@ object HttpUtil {
    * @param res a bytestring, ie the bytes sent by the server.
    * @return returns a Request.
    */
-  def apply(res:ByteString):Response = {
+  def apply(res:ByteString):Option[Response] = {
     val it = res.iterator
     val headerBody = StringBuilder.newBuilder
     val bodyPos = findBody(it, headerBody, 1)
@@ -47,6 +47,9 @@ object HttpUtil {
     if (bodyPos+5 > res.size) {
       startAndHeaders = headerBody.result()
     } else {
+      if (bodyPos == -1) {
+        return None
+      }
       startAndHeaders = headerBody.result().substring(0, bodyPos)
       body = new Array[Byte](res.size-bodyPos-8)
       val newIt = res.iterator
@@ -60,7 +63,7 @@ object HttpUtil {
       val header = l.split(":")
       (header(0) -> header(1))
     }.toMap
-    new Response(code.toInt, msg, headers, body)
+    new Some(Response(code.toInt, msg, headers, body))
   }
 
   private def startOut(req:Request):String = {

@@ -133,20 +133,20 @@ class GenericTest extends FunSuite {
     val bodyfulResponse = "HTTP/1.1 200 OK\r\nheader:test\r\nContent-Encoding:UTF-8\r\nContent-Length:23\r\n\r\nDetta kunde varit HTML!\r\n\r\n"
     val longbodyResponse = "HTTP/1.1 200 OK\r\nheader:test\r\nContent-Encoding:UTF-8\r\nContent-Length:164\r\n\r\nI need to break the 128 bit \"read\" limit, so I'll just go on here for a while, and see if this crashes or not! Ok, apparently I have to go one for a while longer ;)\r\n\r\n"
 
-    val headUtil = HttpUtil(ByteString.fromString(bodylessResponse, "UTF-8"))
+    val headUtil = HttpUtil(ByteString.fromString(bodylessResponse, "UTF-8")).get
     assert(headUtil.status == 200)
     assert(headUtil.body.length == 0)
     assert(headUtil.headers("header").equals("test"))
     info("No body response parsed ok")
 
-    val shortBodyUtil = HttpUtil(ByteString.fromString(bodyfulResponse, "UTF-8"))
+    val shortBodyUtil = HttpUtil(ByteString.fromString(bodyfulResponse, "UTF-8")).get
     assert(shortBodyUtil.status == 200)
     assert(shortBodyUtil.body.length == 23)
     assert(shortBodyUtil.headers.size == 3)
     assert(shortBodyUtil.headers("Content-Length").equals("23"))
     info("short body response parsed ok")
 
-    val longBodyUtil = HttpUtil(ByteString.fromString(longbodyResponse, "UTF-8"))
+    val longBodyUtil = HttpUtil(ByteString.fromString(longbodyResponse, "UTF-8")).get
     assert(longBodyUtil.status == 200)
     assert(longBodyUtil.body.length == 164)
     assert(longBodyUtil.headers.size == 3)
