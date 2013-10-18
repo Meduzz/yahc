@@ -62,7 +62,7 @@ private class HttpClientActor(val host:InetSocketAddress) extends Actor {
   IO(Tcp) ! Connect(host)
 
   val responseQue = mutable.Queue[Promise[Response]]()
-  val requestQue = mutable.MutableList[Request]()
+  val requestQue = mutable.Queue[Request]()
 
   def receive = {
     // TODO react to connection closed, and reconnect.
@@ -74,22 +74,25 @@ private class HttpClientActor(val host:InetSocketAddress) extends Actor {
       val connection = sender
       sender ! Register(self)
 
-      requestQue.foreach { r =>
-        connection ! Write(HttpUtil(r), Ack)
+      if (!requestQue.isEmpty) {
+        connection ! Write(HttpUtil(requestQue.dequeue()))
       }
-      requestQue.clear()
 
       context become {
         case Received(data) => {
           val promise = responseQue.dequeue()
           promise.complete(Success(HttpUtil(data))) // TODO this potentially assumes each frame are a full response...
           // Solve by returning Option[Response] in HttpUtil and add a buffer here and try the whole buffer until it works?
+
+          if (!requestQue.isEmpty) {
+            connection ! Write(HttpUtil(requestQue.dequeue()))
+          }
         }
-        case req:Request => {
+        case op:Operation => {
           val parent = sender
-          val promise = Promise[Response]()
+          val promise = op.promise
           responseQue.enqueue(promise) // TODO this can grow out of control, add limit controlled from config
-          connection ! Write(HttpUtil(req), Ack)
+          connection ! Write(HttpUtil(op.req), Ack)
           parent ! promise.future
         }
       }
@@ -97,7 +100,7 @@ private class HttpClientActor(val host:InetSocketAddress) extends Actor {
     case op:Operation => {
       val parent = sender
       responseQue.enqueue(op.promise) // TODO this can grow out of control, add limit controlled from config
-      requestQue += op.req
+      requestQue.enqueue(op.req)
     }
   }
   // TODO add more to come Commandfailed(which_command)

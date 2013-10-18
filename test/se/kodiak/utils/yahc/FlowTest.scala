@@ -148,7 +148,7 @@ class FlowTest extends FunSuite with BeforeAndAfter {
     val localhost:DSL = "http://localhost:3000"
     val localhostQuery = localhost / "get" get
 
-    val duckduck:DSL = "http://www.duckduckgo.com"
+    val duckduck:DSL = "https://duckduckgo.com"
     val duckduckQuery = duckduck ? ("q", "yahc") get
 
     val client = HttpClient()
@@ -157,6 +157,34 @@ class FlowTest extends FunSuite with BeforeAndAfter {
     client send duckduckQuery
     client send localhostQuery
     client send duckduckQuery
+  }
+
+  test("loads of mixed request with mixed responses") {
+    val localhost:DSL = "http://localhost:3000"
+    val get = localhost
+    val post = localhost
+    val getReq = get / "get" get
+    val postReq = post / "post" post("test data")
+    val client = HttpClient()
+
+    assert(err.size == 0)
+
+    val p1 = client send postReq
+    val g1 = client send getReq
+    val p2 = client send postReq
+    val g2 = client send getReq
+    val p3 = client send postReq
+    val g3 = client send getReq
+    val p4 = client send postReq
+    val g4 = client send getReq
+
+    assert(err.size == 0)
+
+    val futures = Array(p1, g1, p2, g2, p3, g3, p4, g4)
+
+    futures.foreach { future =>
+      assert(Await.result(future, 10 seconds) != null)
+    }
   }
 
   test("shutdown node") {

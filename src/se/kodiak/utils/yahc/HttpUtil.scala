@@ -55,7 +55,7 @@ object HttpUtil {
     }
 
     val headerLines = startAndHeaders.split(LF)
-    val Array(http, code, msg) = headerLines.head.split(" ")
+    val Array(http, code, msg) = headerLines.head.split(" ", 3)
     val headers = headerLines.tail.map { l =>
       val header = l.split(":")
       (header(0) -> header(1))
