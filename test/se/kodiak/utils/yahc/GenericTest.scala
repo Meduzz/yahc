@@ -85,13 +85,16 @@ class GenericTest extends FunSuite {
     }.length > 0
   }
 
-  val get = "GET /path?query=test HTTP/1.1\r\nHost:www.test.com\r\nheader:test\r\n\r\n"
-  val post = "POST /path?query=test HTTP/1.1\r\nHost:www.test.com\r\nheader:test\r\nContent-Length:9\r\nContent-Encoding:application/x-www-form-urlencoded\r\n\r\nbody=test"
-  val post2 = "POST /path?query=test HTTP/1.1\r\nHost:www.test.com\r\nheader:test\r\nContent-Length:10\r\n\r\nDin mamma!"
-  val put = "PUT /path?query=test HTTP/1.1\r\nHost:www.test.com\r\nheader:test\r\nContent-Length:9\r\nContent-Encoding:application/x-www-form-urlencoded\r\n\r\nbody=test"
-  val put2 = "PUT /path?query=test HTTP/1.1\r\nHost:www.test.com\r\nheader:test\r\nContent-Length:10\r\n\r\nDin mamma!"
-  val delete = "DELETE /path?query=test HTTP/1.1\r\nHost:www.test.com\r\nheader:test\r\n\r\n"
-  val head = "HEAD /path?query=test HTTP/1.1\r\nHost:www.test.com\r\nheader:test\r\n\r\n"
+  val CR = 13.toChar
+  val LF = 10.toChar
+  val CRLF = s"${CR}${LF}"
+  val get = s"GET /path?query=test HTTP/1.1${CRLF}Host:www.test.com${CRLF}header:test${CRLF}${CRLF}"
+  val post = s"POST /path?query=test HTTP/1.1${CRLF}Host:www.test.com${CRLF}header:test${CRLF}Content-Length:9${CRLF}Content-Encoding:application/x-www-form-urlencoded${CRLF}${CRLF}body=test"
+  val post2 = s"POST /path?query=test HTTP/1.1${CRLF}Host:www.test.com${CRLF}header:test${CRLF}Content-Length:10${CRLF}${CRLF}Din mamma!"
+  val put = s"PUT /path?query=test HTTP/1.1${CRLF}Host:www.test.com${CRLF}header:test${CRLF}Content-Length:9${CRLF}Content-Encoding:application/x-www-form-urlencoded${CRLF}${CRLF}body=test"
+  val put2 = s"PUT /path?query=test HTTP/1.1${CRLF}Host:www.test.com${CRLF}header:test${CRLF}Content-Length:10${CRLF}${CRLF}Din mamma!"
+  val delete = s"DELETE /path?query=test HTTP/1.1${CRLF}Host:www.test.com${CRLF}header:test${CRLF}${CRLF}"
+  val head = s"HEAD /path?query=test HTTP/1.1${CRLF}Host:www.test.com${CRLF}header:test${CRLF}${CRLF}"
 
   test("HttpUtil builds correct request") {
     import DSL._
@@ -133,24 +136,26 @@ class GenericTest extends FunSuite {
     val bodyfulResponse = "HTTP/1.1 200 OK\r\nheader:test\r\nContent-Encoding:UTF-8\r\nContent-Length:23\r\n\r\nDetta kunde varit HTML!\r\n\r\n"
     val longbodyResponse = "HTTP/1.1 200 OK\r\nheader:test\r\nContent-Encoding:UTF-8\r\nContent-Length:164\r\n\r\nI need to break the 128 bit \"read\" limit, so I'll just go on here for a while, and see if this crashes or not! Ok, apparently I have to go one for a while longer ;)\r\n\r\n"
 
-    val headUtil = HttpUtil(ByteString.fromString(bodylessResponse, "UTF-8")).get
+    val headUtil = HttpUtil(ByteString.fromString(bodylessResponse, "UTF-8")).get.res
     assert(headUtil.status == 200)
     assert(headUtil.body.length == 0)
     assert(headUtil.headers("header").equals("test"))
     info("No body response parsed ok")
 
-    val shortBodyUtil = HttpUtil(ByteString.fromString(bodyfulResponse, "UTF-8")).get
+    val shortBodyUtil = HttpUtil(ByteString.fromString(bodyfulResponse, "UTF-8")).get.res
     assert(shortBodyUtil.status == 200)
     assert(shortBodyUtil.body.length == 23)
     assert(shortBodyUtil.headers.size == 3)
     assert(shortBodyUtil.headers("Content-Length").equals("23"))
     info("short body response parsed ok")
 
-    val longBodyUtil = HttpUtil(ByteString.fromString(longbodyResponse, "UTF-8")).get
+    val longBodyUtil = HttpUtil(ByteString.fromString(longbodyResponse, "UTF-8")).get.res
     assert(longBodyUtil.status == 200)
     assert(longBodyUtil.body.length == 164)
     assert(longBodyUtil.headers.size == 3)
     assert(longBodyUtil.headers("Content-Length").equals("164"))
     info("Long body response parsed ok")
   }
+
+  // TODO test new DSL methods.
 }

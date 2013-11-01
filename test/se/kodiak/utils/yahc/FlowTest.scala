@@ -138,8 +138,6 @@ class FlowTest extends FunSuite with BeforeAndAfter {
     assert(err.size == 0)
   }
 
-  // TODO add a test with huge body
-  // TODO add a test with loads of request to a server
   // TODO replace node.js with a more native "mock"
 
   test("multiple connections") {
@@ -149,42 +147,49 @@ class FlowTest extends FunSuite with BeforeAndAfter {
     val localhostQuery = localhost / "get" get
 
     val dn:DSL = "http://www.dn.se"
-    val dnQuery = dn ? ("q", "yahc") get
+    val dnQuery = dn get
 
     val client = HttpClient()
 
-    try {
-      client send localhostQuery
-      client send dnQuery
-      client send localhostQuery
-      client send dnQuery
-    } catch {
-      case e:NoSuchElementException => throw e
-    }
+    val localFut = client send localhostQuery
+    val dnFut = client send dnQuery
+
+    val localRes = Await.result(localFut, 10 seconds)
+    val dnRes = Await.result(dnFut, 10 seconds)
+
+    assert(localRes.status == 200)
+    assert(err.size == 0)
+    assert(dnRes.status == 200)
+    assert(new String(dnRes.body, "UTF-8").contains("</body>"))
   }
 
   test("loads of mixed request with mixed responses") {
-    val localhost:DSL = "http://localhost:3000"
-    val get = localhost
-    val post = localhost
-    val getReq = get / "get" get
-    val postReq = post / "post" post("test data")
+    val getUrl:DSL = "http://localhost:3000"
+    val postUrl:DSL = "http://localhost:3000"
+    val headUrl:DSL = "http://localhost:3000"
+    val getReq = getUrl / "get" get
+    val postReq = postUrl / "post" post("test data")
+    val headReq = headUrl / "head" head
     val client = HttpClient()
 
     assert(err.size == 0)
 
     val p1 = client send postReq
     val g1 = client send getReq
+    val h1 = client send headReq
     val p2 = client send postReq
     val g2 = client send getReq
+    val h2 = client send headReq
     val p3 = client send postReq
     val g3 = client send getReq
+    val h3 = client send headReq
     val p4 = client send postReq
     val g4 = client send getReq
+    val h4 = client send headReq
 
     assert(err.size == 0)
 
-    val futures = Array(p1, g1, p2, g2, p3, g3, p4, g4)
+    val futures = Array(p1, g1, h1, p2, g2, h2, p3, g3, h3, p4, g4, h4)
 
     futures.foreach { future =>
       assert(Await.result(future, 10 seconds) != null)
@@ -202,6 +207,19 @@ class FlowTest extends FunSuite with BeforeAndAfter {
 
     assert(new String(body.body, "utf8").contains("sorry"))
     assert(err.size == 0)
+  }
+
+  test("chunked responses") {
+    val host:DSL = "http://localhost:3000"
+    val req = host / "chunked" get
+    val client = HttpClient()
+
+    val fut = client send req
+    val resp = Await.result(fut, 10 seconds)
+
+    assert(resp.status == 200)
+    assert(new String(resp.body, "UTF-8").contains("chunk1"))
+    assert(new String(resp.body, "UTF-8").contains("chunk2"))
   }
 
   test("shutdown node") {

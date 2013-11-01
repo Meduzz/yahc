@@ -26,6 +26,11 @@ server.on('request', function(req, res){
   } else if (req.url == '/head' && req.method == 'HEAD') {
     console.log("200");
     res.end();
+  } else if (req.url == '/chunked' && req.method == 'GET') {
+    console.log("200");
+    res.write("chunk1");
+    res.write("chunk2");
+    res.end();
   } else if (req.url == '/slow' && req.method == 'GET') {
     setTimeout(function(){
       console.log("200");

@@ -22,7 +22,6 @@ object HttpClient {
 }
 
 // TODO add reconnect method.
-// TODO add support for many connections / client.
 class HttpClient {
   val connections = mutable.Map[String, ActorRef]()
   val system = ActorSystem("yahc-actor-system")
@@ -34,8 +33,10 @@ class HttpClient {
     import java.util.concurrent.TimeUnit
     val promise = Promise[Response]()
 
+    println(req.getClass.getSimpleName)
+
     implicit val timeout = Timeout(15, TimeUnit.SECONDS) // TODO extract to property
-    connector ! new Operation(req, promise)
+    connector ! new RequestDTO(req, promise)
 
     promise.future
   }
@@ -52,16 +53,17 @@ class HttpClient {
   }
 }
 
-case class Operation(req:Request, promise:Promise[Response])
+case class RequestDTO(req:Request, promise:Promise[Response])
 case class Response(status:Int, message:String, headers:Map[String, String], body:Array[Byte])
+case class Append(data:ByteString)
+case class ResponseDTO(res:Response, length:Int)
 
 private class HttpClientActor(val host:InetSocketAddress) extends Actor {
   implicit val system = context.system
   IO(Tcp) ! Connect(host)
 
-  val responseQue = mutable.Queue[Promise[Response]]()
   val requestQue = mutable.Queue[Request]()
-  val buffer = ByteString.newBuilder
+  val responseHandler = system.actorOf(Props[HttpResponseActor])
 
   def receive = {
     // TODO react to connection closed, and reconnect.
@@ -73,35 +75,26 @@ private class HttpClientActor(val host:InetSocketAddress) extends Actor {
       val connection = sender
       sender ! Register(self)
 
-      if (!requestQue.isEmpty) {
+      while (!requestQue.isEmpty) {
         connection ! Write(HttpUtil(requestQue.dequeue()))
       }
 
       context become {
         case Received(data) => {
-          HttpUtil(buffer.append(data).result()) match {
-            case None => buffer.append(data)
-            case Some(r:Response) => {
-              val promise = responseQue.dequeue()
-              promise.complete(Success(r))
-              buffer.clear()
-            }
-          }
+          responseHandler ! Append(data)
 
           if (!requestQue.isEmpty) {
             connection ! Write(HttpUtil(requestQue.dequeue()))
           }
         }
-        case op:Operation => {
-          val promise = op.promise
-          responseQue.enqueue(promise) // TODO this can grow out of control, add limit controlled from config
+        case op:RequestDTO => {
+          responseHandler ! op.promise // TODO this can grow out of control, add limit controlled from config
           connection ! Write(HttpUtil(op.req), Ack)
         }
       }
     }
-    case op:Operation => {
-      val parent = sender
-      responseQue.enqueue(op.promise) // TODO this can grow out of control, add limit controlled from config
+    case op:RequestDTO => {
+      responseHandler ! op.promise // TODO this can grow out of control, add limit controlled from config
       requestQue.enqueue(op.req)
     }
   }
@@ -109,3 +102,32 @@ private class HttpClientActor(val host:InetSocketAddress) extends Actor {
 }
 
 private object Ack extends Event
+
+private class HttpResponseActor extends Actor {
+  val responseQue = mutable.Queue[Promise[Response]]()
+  val buffer = ByteString.newBuilder
+
+  def receive = {
+    case Append(data) => {
+      buffer append data
+      val workingBuffer = buffer.result()
+      HttpUtil(workingBuffer) match {
+        case None => {}
+        case Some(r:ResponseDTO) => {
+          buffer.clear()
+          buffer.append(workingBuffer.drop(r.length))
+
+          if (buffer.length > 0) {
+            context.self ! Append(ByteString.newBuilder.result())
+          }
+
+          val promise = responseQue.dequeue()
+          promise.complete(Success(r.res))
+        }
+      }
+    }
+    case f:Promise[Response] => {
+      responseQue.enqueue(f)
+    }
+  }
+}

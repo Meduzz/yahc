@@ -84,6 +84,36 @@ object DSL {
     dsl
   }
 
+  /**
+   * It makes ittebitte tiny more sense to start building with http.
+   * @param host the host to connect to, later.
+   * @return returns a dsl object that you can continue to build upon.
+   */
+  def http(host:String):DSL = new DSL(host)
+
+  /**
+   * It makes ittebitte tiny more sense to start building with http.
+   * @param host the host to connect to.
+   * @param port the port to connect to.
+   * @return a DSL to continue build your request on.
+   */
+  def http(host:String, port:Int):DSL = new DSL(host, port)
+
+  /**
+   * It makes ittebitte tiny more sense to start building with http.
+   * @param host the secure host to connecto to.
+   * @return a DSL to continue build your request on.
+   */
+  def https(host:String):DSL = new DSL(host).secure(true)
+
+  /**
+   * It makes ittebitte tiny more sense to start building with http.
+   * @param host the secure host to connect to.
+   * @param port the secure port to connect to.
+   * @return a DLS to continue build your request on.
+   */
+  def https(host:String, port:Int):DSL = new DSL(host, port).secure(true)
+
   implicit def strToDSL(uri:String):DSL = {
     val url = new URI(uri)
     host(url)
@@ -138,8 +168,9 @@ class DSL(val host:String, val port:Int = 80) {
    * Set secure (true=https, false=http) default value is false.
    * @param secure go secure or not.
    */
-  def secure(secure:Boolean) = {
+  def secure(secure:Boolean):DSL = {
     https = secure
+    this
   }
 
   /**
