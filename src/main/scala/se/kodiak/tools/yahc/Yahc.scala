@@ -1,9 +1,9 @@
 package se.kodiak.tools.yahc
 
 import org.json4s.DefaultFormats
-import scalaj.http.{Http, HttpRequest}
+import scalaj.http.{Http, HttpRequest, HttpResponse}
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
 
 object Yahc {
 
@@ -41,10 +41,17 @@ object Yahc {
 
 	def request(url:String, method:String):HttpRequest = Http(url).method(method)
 
-	implicit class Req(req:HttpRequest) {
-		def asJson[T](implicit ec:ExecutionContext, tag:Manifest[T]):Future[T] = Future {
+	implicit class StringRes(res:HttpResponse[String]) {
+		def asJson[T](implicit ec:ExecutionContext, tag:Manifest[T]):T = {
 			import org.json4s.native.Serialization.read
-			read[T](req.asString.body)(DefaultFormats, tag)
+			read[T](res.body)(DefaultFormats, tag)
+		}
+	}
+
+	implicit class BytesRes(res:HttpResponse[Array[Byte]]) {
+		def asJson[T](implicit ec:ExecutionContext, tag:Manifest[T]):T = {
+			import org.json4s.native.Serialization.read
+			read[T](new String(res.body, "utf-8"))(DefaultFormats, tag)
 		}
 	}
 }
