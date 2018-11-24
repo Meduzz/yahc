@@ -1,15 +1,9 @@
 package se.kodiak.tools.yahc
 
-import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.time.{Milliseconds, Span}
 import org.scalatest.{FunSuite, Matchers}
 import se.kodiak.tools.yahc.Yahc._
 
-import scala.concurrent.ExecutionContext.Implicits.global
-
-class YahcTest extends FunSuite with ScalaFutures with Matchers with Server {
-
-	override implicit def patienceConfig = PatienceConfig(Span(500, Milliseconds), Span(50, Milliseconds))
+class YahcTest extends FunSuite with Matchers with Server {
 
 	test("get / test / 16") {
 		val result = GET("http://localhost:6006/test/16").asString
