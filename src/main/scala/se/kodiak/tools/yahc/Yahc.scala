@@ -11,9 +11,18 @@ object Yahc {
 	object GET {
 		def apply(url:String, signer:Option[Signer] = None):HttpRequest = {
 			val req = request(url, "GET")
+				.header("Accept", "application/json")
 
 			signer.map(sign => sign(NoBody, req))
 		  	.getOrElse(req)
+		}
+
+		def text(url:String, signer:Option[Signer] = None):HttpRequest = {
+			val req = request(url, "GET")
+				.header("Accept", "text/plain")
+
+			signer.map(sign => sign(NoBody, req))
+				.getOrElse(req)
 		}
 	}
 
@@ -25,9 +34,20 @@ object Yahc {
 			val req = request(url, "POST")
 				.postData(body)
 		  	.header("Content-Type", "application/json")
+		  	.header("Accept", "application/json")
 
 			signer.map(sign => sign(body, req))
 		  	.getOrElse(req)
+		}
+
+		def text(url:String, data:String, signer:Option[Signer] = None):HttpRequest = {
+			val req = request(url, "POST")
+				.postData(data)
+				.header("Content-Type", "text/plain")
+				.header("Accept", "text/plain")
+
+			signer.map(sign => sign(data, req))
+				.getOrElse(req)
 		}
 	}
 
@@ -39,18 +59,38 @@ object Yahc {
 			val req = request(url, "PUT")
 				.put(body)
 				.header("Content-Type", "application/json")
+				.header("Accept", "application/json")
 
 			signer.map(sign => sign(body, req))
 		  	.getOrElse(req)
+		}
+
+		def text(url:String, data:String, signer:Option[Signer] = None):HttpRequest = {
+			val req = request(url, "PUT")
+				.put(data)
+				.header("Content-Type", "text/plain")
+				.header("Accept", "text/plain")
+
+			signer.map(sign => sign(data, req))
+				.getOrElse(req)
 		}
 	}
 
 	object DELETE {
 		def apply(url:String, signer:Option[Signer] = None):HttpRequest = {
 			val req = request(url, "DELETE")
+				.header("Accept", "application/json")
 
 			signer.map(sign => sign(NoBody, req))
 		  	.getOrElse(req)
+		}
+
+		def text(url:String, signer:Option[Signer] = None):HttpRequest = {
+			val req = request(url, "DELETE")
+				.header("Accept", "text/plain")
+
+			signer.map(sign => sign(NoBody, req))
+				.getOrElse(req)
 		}
 	}
 
