@@ -30,24 +30,6 @@ class YahcTest extends FunSuite with Matchers with Server {
 		result.name shouldBe origin.name
 		result.age shouldBe origin.age
 	}
-
-	test("silly signing - happy version") {
-		val origin = Test("asdf", 73)
-		val result = POST("http://localhost:6006/signed", origin, Some((b, r) => {
-			r.header("Signature", s"${b.length}")
-		})).asString
-
-		result.code shouldBe 200
-	}
-
-	test("silly signing - unhappy version") {
-		val origin = Test("asdf", 73)
-		val result = POST("http://localhost:6006/signed", origin, Some((b, r) => {
-			r.header("Signature", s"${-1}")
-		})).asString
-
-		result.code shouldBe 400
-	}
 }
 
 case class Test(name:String, age:Int)

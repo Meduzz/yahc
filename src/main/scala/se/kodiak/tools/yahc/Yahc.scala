@@ -5,29 +5,29 @@ import scalaj.http.{Http, HttpRequest, HttpResponse}
 
 object Yahc {
 
-	type Signer = (String, HttpRequest)=>HttpRequest
+	type BodyHook = (String, HttpRequest)=>HttpRequest
 	val NoBody = ""
 
 	object GET {
-		def apply(url:String, signer:Option[Signer] = None):HttpRequest = {
+		def apply(url:String, bodyHook:Option[BodyHook] = None):HttpRequest = {
 			val req = request(url, "GET")
 				.header("Accept", "application/json")
 
-			signer.map(sign => sign(NoBody, req))
+			bodyHook.map(hook => hook(NoBody, req))
 		  	.getOrElse(req)
 		}
 
-		def text(url:String, signer:Option[Signer] = None):HttpRequest = {
+		def text(url:String, bodyHook:Option[BodyHook] = None):HttpRequest = {
 			val req = request(url, "GET")
 				.header("Accept", "text/plain")
 
-			signer.map(sign => sign(NoBody, req))
+			bodyHook.map(hook => hook(NoBody, req))
 				.getOrElse(req)
 		}
 	}
 
 	object POST {
-		def apply(url:String, entity:AnyRef, signer:Option[Signer] = None):HttpRequest = {
+		def apply(url:String, entity:AnyRef, bodyHook:Option[BodyHook] = None):HttpRequest = {
 			import org.json4s.native.Serialization.write
 
 			val body = write(entity)(DefaultFormats)
@@ -36,23 +36,23 @@ object Yahc {
 		  	.header("Content-Type", "application/json")
 		  	.header("Accept", "application/json")
 
-			signer.map(sign => sign(body, req))
+			bodyHook.map(hook => hook(body, req))
 		  	.getOrElse(req)
 		}
 
-		def text(url:String, data:String, signer:Option[Signer] = None):HttpRequest = {
+		def text(url:String, data:String, bodyHook:Option[BodyHook] = None):HttpRequest = {
 			val req = request(url, "POST")
 				.postData(data)
 				.header("Content-Type", "text/plain")
 				.header("Accept", "text/plain")
 
-			signer.map(sign => sign(data, req))
+			bodyHook.map(hook => hook(data, req))
 				.getOrElse(req)
 		}
 	}
 
 	object PUT {
-		def apply(url:String, entity:AnyRef, signer:Option[Signer] = None):HttpRequest = {
+		def apply(url:String, entity:AnyRef, bodyHook:Option[BodyHook] = None):HttpRequest = {
 			import org.json4s.native.Serialization.write
 
 			val body = write(entity)(DefaultFormats)
@@ -61,44 +61,44 @@ object Yahc {
 				.header("Content-Type", "application/json")
 				.header("Accept", "application/json")
 
-			signer.map(sign => sign(body, req))
+			bodyHook.map(hook => hook(body, req))
 		  	.getOrElse(req)
 		}
 
-		def text(url:String, data:String, signer:Option[Signer] = None):HttpRequest = {
+		def text(url:String, data:String, bodyHook:Option[BodyHook] = None):HttpRequest = {
 			val req = request(url, "PUT")
 				.put(data)
 				.header("Content-Type", "text/plain")
 				.header("Accept", "text/plain")
 
-			signer.map(sign => sign(data, req))
+			bodyHook.map(hook => hook(data, req))
 				.getOrElse(req)
 		}
 	}
 
 	object DELETE {
-		def apply(url:String, signer:Option[Signer] = None):HttpRequest = {
+		def apply(url:String, bodyHook:Option[BodyHook] = None):HttpRequest = {
 			val req = request(url, "DELETE")
 				.header("Accept", "application/json")
 
-			signer.map(sign => sign(NoBody, req))
+			bodyHook.map(hook => hook(NoBody, req))
 		  	.getOrElse(req)
 		}
 
-		def text(url:String, signer:Option[Signer] = None):HttpRequest = {
+		def text(url:String, bodyHook:Option[BodyHook] = None):HttpRequest = {
 			val req = request(url, "DELETE")
 				.header("Accept", "text/plain")
 
-			signer.map(sign => sign(NoBody, req))
+			bodyHook.map(hook => hook(NoBody, req))
 				.getOrElse(req)
 		}
 	}
 
 	object HEAD {
-		def apply(url:String, signer:Option[Signer] = None):HttpRequest = {
+		def apply(url:String, bodyHook:Option[BodyHook] = None):HttpRequest = {
 			val req = request(url, "HEAD")
 
-			signer.map(sign => sign(NoBody, req))
+			bodyHook.map(hook => hook(NoBody, req))
 				.getOrElse(req)
 		}
 	}
